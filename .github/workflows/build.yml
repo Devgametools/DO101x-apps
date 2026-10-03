@@ -5,12 +5,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - name: Instalar oc
+      - name: Install oc
         uses: redhat-actions/openshift-tools-installer@v1
         with:
           oc: latest
-      - name: Login y build
+
+      - name: Validate OpenShift configuration
+        env:
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
         run: |
-          oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+          test -n "$OPENSHIFT_SERVER" || {
+            echo "::error::OPENSHIFT_SERVER is not configured"
+            exit 1
+          }
+          test -n "$OPENSHIFT_TOKEN" || {
+            echo "::error::OPENSHIFT_TOKEN is not configured"
+            exit 1
+          }
+
+      - name: Login and build
+        env:
+          OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+        run: |
+          oc login "$OPENSHIFT_SERVER" \
+            --token="$OPENSHIFT_TOKEN" \
+            --insecure-skip-tls-verify=false
+
           oc start-build version -n vbravot-dev
